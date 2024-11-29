@@ -70,4 +70,5 @@ if __name__ == "__main__":
     plt.plot(y[0].numpy(), label='True')
     plt.plot(predictions[0], label='Predicted')
     plt.legend()
+    plt.savefig("RNN/single_layer_rnn_pred.png")
     plt.show()
