@@ -27,7 +27,8 @@ class LSTMModel(nn.Module):
         self.lstm = nn.LSTM(input_dim, hidden_dim, layer_dim, batch_first=True)
 
         # Fully connected layer
-        self.fc = nn.Linear(hidden_dim, output_dim)
+        self.fc = nn.Linear(hidden_dim, hidden_dim)
+        self.fc_2 = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x):
         # Initialize hidden state with zeros
@@ -41,6 +42,7 @@ class LSTMModel(nn.Module):
 
         # Reshaping the outputs for the fully connected layer
         out = self.fc(out[:, -1, :])
+        out = self.fc_2(out)
         return out
 
 if __name__ == "__main__":
@@ -50,7 +52,7 @@ if __name__ == "__main__":
     # vocab size is the total number of unique words in the dataset
     # vocab_size = 13580
     # embed_size = 128
-    hidden_size = 256
+    hidden_size = 512
     output_size = 2
     model = LSTMModel(input_dim=1, hidden_dim=hidden_size, layer_dim=2, output_dim=output_size).to("cuda")
 
