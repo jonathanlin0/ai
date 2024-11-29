@@ -17,12 +17,12 @@ class SpamTextDataset(Dataset):
     def __getitem__(self, idx):
         text = self.texts[idx]
         label = self.labels[idx]
-        return torch.tensor(text, dtype=torch.long), torch.tensor(label, dtype=torch.long)
+        return torch.tensor(text, dtype=torch.float32), torch.tensor(label, dtype=torch.long)
 
 class SpamTextData:
     @staticmethod
     def get_data(batch_size=32) -> Tuple[DataLoader]:
-        df = pd.read_csv("data/datasets/spam_text.tsv", delimiter='\t', header=None, names=['label', 'text'])
+        df = pd.read_csv("data/datasets/spam_text.tsv", delimiter='\t', header=0, names=['label', 'text'])
 
         # process the data
         df['text'] = df['text'].apply(SpamTextData.preprocess_text)
