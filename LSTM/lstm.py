@@ -57,7 +57,9 @@ if __name__ == "__main__":
     model = LSTMModel(input_dim=1, hidden_dim=hidden_size, layer_dim=2, output_dim=output_size).to("cuda")
 
     criterion = nn.CrossEntropyLoss()
+    # both produce eh results. same as using RNN
     optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.SGD(model.parameters(), lr=0.01)
 
     # Training loop
     num_epochs = 100

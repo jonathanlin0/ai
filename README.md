@@ -18,4 +18,4 @@ Conclusion: The upper capabilities of RNNs are reached easily.
 ## LSTM
 
 ### `lstm.py`
-Implemented an LSTM with 2 fc connected layers at thje end. Didn't achieve any results better than the RNN implementation.
+Implemented an LSTM with 2 fc connected layers at thje end. Didn't achieve any results better than the RNN implementation. Tried a few different parameters. Reached the same maximum accuracy of 86.64%.
