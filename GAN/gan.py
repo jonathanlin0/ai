@@ -86,6 +86,7 @@ if __name__ == "__main__":
             real_labels = torch.ones(real_images.size(0), 1, device=device)
             real_outputs = discriminator(real_images)
             real_loss = criterion(real_outputs, real_labels)
+            # .backward() calcs the gradient values for the discriminator
             real_loss.backward()
 
             # train discriminator with fake images
@@ -94,14 +95,18 @@ if __name__ == "__main__":
             fake_labels = torch.zeros(real_images.size(0), 1, device=device)
             fake_outputs = discriminator(fake_images.detach())
             fake_loss = criterion(fake_outputs, fake_labels)
+            # .backward() calcs the gradient values for the discriminator
             fake_loss.backward()
+            # updates the discriminator based on the stored gradients
             discriminator_optimizer.step()
 
-            # train generator
+            # train and update generator
             generator_optimizer.zero_grad()
+            # use labels = 1 cause the generator wants to trick the discriminator. so discriminator guessing 1 on the fake images is incorrect, but good for the generator
             fake_labels = torch.ones(real_images.size(0), 1, device=device)
             fake_outputs = discriminator(fake_images)
             gen_loss = criterion(fake_outputs, fake_labels)
+            # calculate the gradient values for the generator
             gen_loss.backward()
             generator_optimizer.step()
 
