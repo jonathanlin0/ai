@@ -1,3 +1,8 @@
+# adds parent directory to python path to import other utility modules
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -5,52 +10,144 @@ import torchvision
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import numpy as np
+from data.cifar_10_data import CIFAR10Data
+from torch.utils.data import DataLoader, TensorDataset
+import os
+
+
+from data.image_net_data import ImageNetData
+
+# Residual Block
+class ResidualBlock(nn.Module):
+    def __init__(self, channels):
+        super(ResidualBlock, self).__init__()
+        self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(channels)
+        self.relu = nn.ReLU(True)
+        self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(channels)
+
+    def forward(self, x):
+        residual = x
+        out = self.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out += residual  # Skip connection
+        out = self.relu(out)
+        return out
+
 
 # Generator
 class Generator(nn.Module):
     def __init__(self, noise_dim):
         super(Generator, self).__init__()
-        self.main = nn.Sequential(
-            nn.Linear(noise_dim, 7 * 7 * 256),
-            nn.ReLU(True),
-            nn.Unflatten(1, (256, 7, 7)),
-            nn.ConvTranspose2d(256, 128, 5, stride=1, padding=2),
+        # Fully connected layer
+        self.fc = nn.Sequential(
+            nn.Linear(noise_dim, 7 * 7 * 256),  # Change output shape to match 7x7 feature map
+            nn.ReLU(True)
+        )
+
+        # Initial convolution
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(True)
+        )
+
+        # Residual blocks
+        self.res_blocks = nn.Sequential(
+            *[ResidualBlock(256) for _ in range(3)]  # Adjust number of channels
+        )
+
+        # Upsampling blocks
+        self.upsample_blocks = nn.Sequential(
+            # Upsample: 7x7 -> 14x14
+            nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(True),
-            nn.ConvTranspose2d(128, 64, 5, stride=2, padding=2, output_padding=1),
+            ResidualBlock(128),
+
+            # Upsample: 14x14 -> 28x28
+            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(True),
-            nn.ConvTranspose2d(64, 1, 5, stride=2, padding=2, output_padding=1),
+            ResidualBlock(64),
+        )
+
+        # Final convolution layer
+        self.conv_out = nn.Sequential(
+            nn.Conv2d(64, 1, kernel_size=3, stride=1, padding=1),  # Output 1 channel
             nn.Tanh()
         )
 
     def forward(self, x):
-        return self.main(x)
-    
+        x = self.fc(x)
+        x = x.view(-1, 256, 7, 7)  # Reshape to feature map of 7x7
+        x = self.conv1(x)
+        x = self.res_blocks(x)
+        x = self.upsample_blocks(x)
+        x = self.conv_out(x)
+        return x
+
+
 # Discriminator
 class Discriminator(nn.Module):
     """
-    This discriminator is for MNIST dataset only. Assumes a 28x28 input
+    Discriminator for MNIST (1x28x28 images).
     """
     def __init__(self):
         super(Discriminator, self).__init__()
 
         self.main = nn.Sequential(
-            nn.Conv2d(1, 64, 5, stride=2, padding=2),
+            nn.Conv2d(1, 64, kernel_size=4, stride=2, padding=1),  # 28x28 -> 14x14
             nn.LeakyReLU(0.2, inplace=True),
             nn.BatchNorm2d(64),
-            nn.Conv2d(64, 128, 5, stride=2, padding=2),
+
+            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),  # 14x14 -> 7x7
             nn.LeakyReLU(0.2, inplace=True),
             nn.BatchNorm2d(128),
-            nn.Flatten(),
-            nn.Linear(7 * 7 * 128, 1)
+
+            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),  # 7x7 -> 4x4
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.BatchNorm2d(256),
+
+            nn.Flatten(),  # Flatten feature map
+            nn.Linear(4 * 4 * 256, 1)  # Adjusted to match 4x4 feature map
         )
 
     def forward(self, x):
         return self.main(x)
+
+def generate_and_save_images(model, noise, epoch, save_dir):
+    # Ensure the provided directory exists
+    os.makedirs(save_dir, exist_ok=True)
+
+    model.eval()
+    with torch.no_grad():
+        # Generate images using the generator
+        fake_images = model(noise).cpu()
+
+        # Plot the generated images
+        fig = plt.figure(figsize=(4, 4))
+        for i in range(fake_images.size(0)):
+            plt.subplot(4, 4, i + 1)
+
+            # Transpose image dimensions from [1, 28, 28] to [28, 28] for visualization (MNIST case)
+            img = fake_images[i, 0].numpy()
+
+            # Normalize pixel values to [0, 1] for display
+            img = (img + 1) / 2.0  # Assuming Tanh was used as activation
+
+            # Plot the image
+            plt.imshow(img, cmap="gray")
+            plt.axis("off")
+
+        # Save the grid of images as a single file
+        plt.savefig(os.path.join(save_dir, f"generated_mnist_grid_{epoch}.png"))
+
     
 if __name__ == "__main__":
-    NOISE_DIM = 100
+
+    NOISE_DIM = 128
     NUM_EXAMPLES = 16
 
     generator = Generator(NOISE_DIM)
@@ -65,8 +162,8 @@ if __name__ == "__main__":
     generator_optimizer = optim.Adam(generator.parameters(), lr = 0.0002, betas=(0.5, 0.999))
     discriminator_optimizer = optim.Adam(discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
-    NUM_EPOCHS = 100
-    BATCH_SIZE = 256
+    NUM_EPOCHS = 25
+    BATCH_SIZE = 32
 
     # create the dataloader
     transform = transforms.Compose([
@@ -114,23 +211,7 @@ if __name__ == "__main__":
                 print(f'Epoch [{epoch+1}/{NUM_EPOCHS}], Step [{i+1}/{len(train_loader)}], '
                   f'Discriminator Loss: {real_loss.item() + fake_loss.item():.4f}, '
                   f'Generator Loss: {gen_loss.item():.4f}')
-    
-    def generate_and_save_images(model, noise):
-        model.eval()
-
-        with torch.no_grad():
-            fake_images = model(noise).cpu()
-            fake_images = fake_images.view(fake_images.size(0), 28, 28)
-
-            # we're assuming 16 samples to be generated. change the figure dimensions as needed
-            fig = plt.figure(figsize=(4, 4))
-            for i in range(fake_images.size(0)):
-                plt.subplot(4, 4, i+1)
-                plt.imshow(fake_images[i], cmap="gray")
-                plt.axis("off")
-            
-            plt.savefig("GAN/MNIST_gen.png")
-            plt.show()
-    
-    test_noise = torch.randn(NUM_EXAMPLES, NOISE_DIM, device=device)
-    generate_and_save_images(generator, test_noise)
+        if epoch % 5 == 0:
+            noise = torch.randn(NUM_EXAMPLES, NOISE_DIM, device=device)
+            generate_and_save_images(generator, noise, epoch, "GAN/generated_mnist")
+            generator.train()
