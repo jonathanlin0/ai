@@ -146,6 +146,7 @@ def generate_and_save_images(model, noise, epoch, save_dir):
 
     
 if __name__ == "__main__":
+    torch.manual_seed(42)
 
     NOISE_DIM = 128
     NUM_EXAMPLES = 16
@@ -215,3 +216,5 @@ if __name__ == "__main__":
             noise = torch.randn(NUM_EXAMPLES, NOISE_DIM, device=device)
             generate_and_save_images(generator, noise, epoch, "GAN/generated_mnist")
             generator.train()
+    noise = torch.randn(NUM_EXAMPLES, NOISE_DIM, device=device)
+    generate_and_save_images(generator, noise, epoch, "GAN/generated_mnist")
