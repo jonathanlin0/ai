@@ -2,6 +2,8 @@ I'm trying to learn more about data analysis methods, including artificial intel
 
 I am also keeping a private document containing everything I'm learning that I may publicly release in the future.
 
+#### Implemented Projects
+- Spam text classifier. Implemented with RNN and LSTM
 
 ## RNN
 
@@ -19,3 +21,18 @@ Conclusion: The upper capabilities of RNNs are reached easily.
 
 ### `lstm.py`
 Implemented an LSTM with 2 fc connected layers at thje end. Didn't achieve any results better than the RNN implementation. Tried a few different parameters. Reached the same maximum accuracy of 86.64%.
+
+## GAN
+### `gan_mnist.py`
+This GAN generates hand written numbers using the MNIST dataset. This project could be extended to generate handwritten text.
+
+#### Method 1
+Create a GAN for each possible character. Then use the generator of each GAN network to create the individual letters for whatever you want to write.
+
+#### Method 2
+Create a GAN network that's trained on all the characters. Then get a really good character classifier (discriminator) to choose which specific character you want to type.
+
+## Utility Files
+
+### `util/unzip_imagenet_train.bat`
+The imagenet training data is really weird. It's a zipped folder of zipped folders. So this script unzips all the "mini" folders, assuming that the parent `.tar` folder has already been unzipped. So this script extracts the child `.tar` folders that contain the actual photos.
